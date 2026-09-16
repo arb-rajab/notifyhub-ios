@@ -1,0 +1,19 @@
+# Xcode / Swift Package Manager
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/
+!default.xcodeproj
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+.DS_Store
+
+# XcodeGen output is generated from project.yml - never commit it
+*.xcodeproj
+
+# Secrets - never commit APNs credentials or provisioning material
+*.p8
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
