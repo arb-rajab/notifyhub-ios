@@ -44,36 +44,45 @@ jobs:
 
       - name: Pick an available iPhone simulator
         id: sim
-        # Picking a device name via `simctl` alone (the previous approach)
-        # can name a device that exists only on older iOS runtimes, which
-        # then fails to resolve against xcodebuild's implicit `OS:latest`
-        # - e.g. this runner has "iPhone 15 Pro" simulators only up to iOS
-        # 17.5, while its newest installed runtime is 18.2. Deriving both
-        # the name AND the OS from the scheme's own `-showdestinations`
-        # output guarantees a pairing that's actually valid for this
-        # project, instead of guessing at one.
+        # Two failure modes ruled out before this version:
+        # 1. Picking a device name via `simctl` without its paired OS (the
+        #    very first approach) can name a device that only exists on
+        #    older iOS runtimes, which then fails to resolve against
+        #    xcodebuild's implicit `OS:latest`.
+        # 2. `xcodebuild -showdestinations` right after an `xcode-select
+        #    -switch` can report an incomplete device list (just the
+        #    generic placeholders, no concrete simulators) - apparently a
+        #    cold CoreSimulator cache on this runner image - even though
+        #    `xcrun simctl` sees the real device set fine at the same
+        #    point in time. So: use `simctl`'s own JSON output (`jq`,
+        #    preinstalled on GitHub's macOS runners) and keep name+OS
+        #    paired from the same device entry, never derived separately.
         run: |
-          # This step reasons about its own "not found" case below, and an
-          # intermediate grep with zero matches (or output landing on
-          # stderr, if -showdestinations ever does that) must not abort
-          # the script before that check runs - so turn off -e here and
-          # capture both streams rather than discarding stderr.
           set +e
-          ALL=$(xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS 2>&1)
-          LINES=$(echo "$ALL" | grep "platform:iOS Simulator" | grep "name:iPhone")
-          BEST=$(echo "$LINES" | while IFS= read -r line; do
-            os=$(echo "$line" | grep -oE 'OS:[0-9.]+' | sed 's/OS://')
-            [ -n "$os" ] && echo "$os|$line"
-          done | sort -t'|' -k1,1V -r | head -n1 | cut -d'|' -f2-)
+          BEST=$(xcrun simctl list devices available -j | jq -r '
+            [
+              .devices
+              | to_entries[]
+              | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS-"))
+              | .key as $runtime
+              | ($runtime | sub("com.apple.CoreSimulator.SimRuntime.iOS-"; "") | split("-") | map(tonumber)) as $ver
+              | .value[]
+              | select(.isAvailable and (.name | startswith("iPhone")))
+              | { name: .name, os: ($ver | join(".")), ver: $ver }
+            ]
+            | sort_by(.ver)
+            | last
+            | if . == null then empty else "\(.name)|\(.os)" end
+          ')
 
           if [ -z "$BEST" ]; then
-            echo "No available iPhone simulator destination found" >&2
-            echo "$ALL"
+            echo "No available iPhone simulator found" >&2
+            xcrun simctl list devices available
             exit 1
           fi
 
-          NAME=$(echo "$BEST" | grep -oE 'name:[^,}]+' | sed 's/name://' | sed -E 's/^ *//;s/ *$//')
-          OS=$(echo "$BEST" | grep -oE 'OS:[0-9.]+' | sed 's/OS://')
+          NAME="${BEST%%|*}"
+          OS="${BEST##*|}"
           echo "Selected: name=$NAME OS=$OS"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "os=$OS" >> "$GITHUB_OUTPUT"
