@@ -1,0 +1,81 @@
+# XcodeGen project spec (https://github.com/yonaskolb/XcodeGen). The
+# generated NotifyHubIOS.xcodeproj is never committed (see .gitignore) -
+# `xcodegen generate` regenerates it deterministically from this file, in
+# CI and on a real developer machine alike. This sandbox has no Xcode or
+# Swift toolchain at all, so this file (and everything under Sources/ and
+# Tests/) has never been compiled locally - CI's macos runner is the only
+# place this has actually been built. See docs/project-memory/06-ops.md.
+name: NotifyHubIOS
+options:
+  bundleIdPrefix: com.notifyhub
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+
+targets:
+  NotifyHubIOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources/NotifyHubIOS
+    info:
+      path: Sources/NotifyHubIOS/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: NotifyHub
+        UILaunchScreen: {}
+        UIBackgroundModes: [remote-notification]
+        UIApplicationSupportsIndirectInputEvents: true
+    entitlements:
+      path: Sources/NotifyHubIOS/Resources/NotifyHubIOS.entitlements
+      properties:
+        aps-environment: development
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.notifyhub.ios
+        # Deliberately NOT overriding PRODUCT_NAME away from the target
+        # name ("NotifyHubIOS") - XcodeGen/Xcode derive the unit test
+        # bundle's TEST_HOST path from the app target's name, and a
+        # PRODUCT_NAME that diverges from it breaks that derivation
+        # ("Could not find test host" at test time). CFBundleDisplayName
+        # below is the actual user-visible app name; this only affects
+        # the internal product/bundle identifier naming.
+        #
+        # Ad-hoc ("-") signing, not CODE_SIGNING_ALLOWED=NO: a fully
+        # unsigned build launches fine in the Simulator, but Keychain
+        # Services entitlement checks (used by KeychainStore) fail with
+        # errSecMissingEntitlement (-34018) without at least ad-hoc
+        # signing - and ad-hoc signing needs no paid Apple Developer
+        # account or provisioning profile for Simulator destinations.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        DEVELOPMENT_TEAM: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+    scheme:
+      testTargets:
+        - NotifyHubIOSTests
+      gatherCoverageData: true
+
+  NotifyHubIOSTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Tests/NotifyHubIOSTests
+    dependencies:
+      - target: NotifyHubIOS
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        DEVELOPMENT_TEAM: ""
+        # Ad-hoc signing (needed for Keychain entitlements - see the app
+        # target's comment above) requires every signed target to have an
+        # Info.plist to embed; this test bundle has no custom content to
+        # put in one, so let Xcode generate a minimal one automatically.
+        GENERATE_INFOPLIST_FILE: YES

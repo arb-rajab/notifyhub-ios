@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # This repo has no Xcode/Swift toolchain available in the development
+    # sandbox it was built in - this job is the first and only place any
+    # of this has actually been compiled. See docs/project-memory/06-ops.md.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest available Xcode
+        # /Applications/Xcode.app on this runner image resolves to an
+        # older Xcode than the pbxproj format XcodeGen's latest release
+        # writes by default ("cannot be opened because it is in a future
+        # Xcode project file format" if an older Xcode is selected) -
+        # macOS runner images ship several Xcode versions side by side
+        # under /Applications/Xcode_<version>.app, so pick the newest one
+        # actually installed rather than trusting the default symlink.
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST=/Applications/Xcode.app
+          fi
+          echo "Selecting $LATEST"
+          sudo xcode-select -switch "$LATEST"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an available iPhone simulator
+        id: sim
+        # Two failure modes ruled out before this version:
+        # 1. Picking a device name via `simctl` without its paired OS (the
+        #    very first approach) can name a device that only exists on
+        #    older iOS runtimes, which then fails to resolve against
+        #    xcodebuild's implicit `OS:latest`.
+        # 2. `xcodebuild -showdestinations` right after an `xcode-select
+        #    -switch` can report an incomplete device list (just the
+        #    generic placeholders, no concrete simulators) - apparently a
+        #    cold CoreSimulator cache on this runner image - even though
+        #    `xcrun simctl` sees the real device set fine at the same
+        #    point in time. So: use `simctl`'s own JSON output (`jq`,
+        #    preinstalled on GitHub's macOS runners) and keep name+OS
+        #    paired from the same device entry, never derived separately.
+        run: |
+          set +e
+          BEST=$(xcrun simctl list devices available -j | jq -r '
+            [
+              .devices
+              | to_entries[]
+              | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS-"))
+              | .key as $runtime
+              | ($runtime | sub("com.apple.CoreSimulator.SimRuntime.iOS-"; "") | split("-") | map(tonumber)) as $ver
+              | .value[]
+              | select(.isAvailable and (.name | startswith("iPhone")))
+              | { name: .name, os: ($ver | join(".")), ver: $ver }
+            ]
+            | sort_by(.ver)
+            | last
+            | if . == null then empty else "\(.name)|\(.os)" end
+          ')
+
+          if [ -z "$BEST" ]; then
+            echo "No available iPhone simulator found" >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+
+          NAME="${BEST%%|*}"
+          OS="${BEST##*|}"
+          echo "Selected: name=$NAME OS=$OS"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "os=$OS" >> "$GITHUB_OUTPUT"
+
+      # Signing uses project.yml's CODE_SIGN_IDENTITY=- (ad-hoc) - not
+      # CODE_SIGNING_ALLOWED=NO. A fully unsigned build launches in the
+      # Simulator fine, but Keychain Services entitlement checks
+      # (KeychainStoreTests) fail with errSecMissingEntitlement without
+      # at least ad-hoc signing, which needs no paid account or profile
+      # for a Simulator destination. Don't pass CODE_SIGNING_ALLOWED=NO
+      # here - it would override the project setting back to unsigned.
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project NotifyHubIOS.xcodeproj \
+            -scheme NotifyHubIOS \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}"
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project NotifyHubIOS.xcodeproj \
+            -scheme NotifyHubIOS \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}"
+
+  # A `dependency-review` job (actions/dependency-review-action) is not
+  # configured here for the same reason notifyhub's CI omits it: it
+  # requires the repository's "Dependency graph" setting enabled, an
+  # account-level toggle outside this workflow's control. This repo has
+  # no external Swift package dependencies today, so Dependabot's
+  # `.github/dependabot.yml` swift/github-actions ecosystems are the
+  # ongoing coverage.
