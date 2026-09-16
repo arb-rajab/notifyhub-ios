@@ -44,21 +44,40 @@ jobs:
 
       - name: Pick an available iPhone simulator
         id: sim
+        # Picking a device name via `simctl` alone (the previous approach)
+        # can name a device that exists only on older iOS runtimes, which
+        # then fails to resolve against xcodebuild's implicit `OS:latest`
+        # - e.g. this runner has "iPhone 15 Pro" simulators only up to iOS
+        # 17.5, while its newest installed runtime is 18.2. Deriving both
+        # the name AND the OS from the scheme's own `-showdestinations`
+        # output guarantees a pairing that's actually valid for this
+        # project, instead of guessing at one.
         run: |
-          DEVICE=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^ *([^(]+) \(.*/\1/' | sed -E 's/ *$//')
-          if [ -z "$DEVICE" ]; then
-            echo "No available iPhone simulator found" >&2
-            xcrun simctl list devices available
+          LINES=$(xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS 2>/dev/null \
+            | grep "platform:iOS Simulator" | grep "name:iPhone")
+          BEST=$(echo "$LINES" | while IFS= read -r line; do
+            os=$(echo "$line" | grep -oE 'OS:[0-9.]+' | sed 's/OS://')
+            [ -n "$os" ] && echo "$os|$line"
+          done | sort -t'|' -k1,1V -r | head -n1 | cut -d'|' -f2-)
+
+          if [ -z "$BEST" ]; then
+            echo "No available iPhone simulator destination found" >&2
+            xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS
             exit 1
           fi
-          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+
+          NAME=$(echo "$BEST" | grep -oE 'name:[^,}]+' | sed 's/name://' | sed -E 's/^ *//;s/ *$//')
+          OS=$(echo "$BEST" | grep -oE 'OS:[0-9.]+' | sed 's/OS://')
+          echo "Selected: name=$NAME OS=$OS"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "os=$OS" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: |
           xcodebuild build \
             -project NotifyHubIOS.xcodeproj \
             -scheme NotifyHubIOS \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}" \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Test
@@ -67,7 +86,7 @@ jobs:
           xcodebuild test \
             -project NotifyHubIOS.xcodeproj \
             -scheme NotifyHubIOS \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}" \
             CODE_SIGNING_ALLOWED=NO
 
   # A `dependency-review` job (actions/dependency-review-action) is not
