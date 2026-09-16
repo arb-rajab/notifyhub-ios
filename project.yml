@@ -38,7 +38,13 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.notifyhub.ios
-        PRODUCT_NAME: NotifyHub
+        # Deliberately NOT overriding PRODUCT_NAME away from the target
+        # name ("NotifyHubIOS") - XcodeGen/Xcode derive the unit test
+        # bundle's TEST_HOST path from the app target's name, and a
+        # PRODUCT_NAME that diverges from it breaks that derivation
+        # ("Could not find test host" at test time). CFBundleDisplayName
+        # below is the actual user-visible app name; this only affects
+        # the internal product/bundle identifier naming.
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_IDENTITY: ""
         CODE_SIGNING_REQUIRED: NO
