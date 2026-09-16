@@ -17,7 +17,7 @@ jobs:
     # of this has actually been compiled. See docs/project-memory/06-ops.md.
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select the newest available Xcode
         # /Applications/Xcode.app on this runner image resolves to an
