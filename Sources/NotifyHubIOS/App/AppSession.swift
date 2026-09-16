@@ -30,11 +30,16 @@ final class AppSession: ObservableObject {
     init(
         graphQLClient: GraphQLClient = GraphQLClient(endpoint: NotifyHubEndpoint.httpURL),
         keychain: KeychainStore = KeychainStore(),
-        deepLinkCoordinator: DeepLinkCoordinator = DeepLinkCoordinator()
+        deepLinkCoordinator: DeepLinkCoordinator? = nil
     ) {
         self.graphQLClient = graphQLClient
         self.keychain = keychain
-        self.deepLinkCoordinator = deepLinkCoordinator
+        // DeepLinkCoordinator is @MainActor, so constructing it can't be a
+        // default *parameter* value (default expressions aren't
+        // guaranteed to run on the main actor even though this
+        // initializer is) - build it here in the init body instead, which
+        // does run under AppSession's own @MainActor isolation.
+        self.deepLinkCoordinator = deepLinkCoordinator ?? DeepLinkCoordinator()
         self.authService = AuthService(client: graphQLClient)
         self.pushRegistrationService = PushRegistrationService(client: graphQLClient)
         self.channelRepository = ChannelRepository(client: graphQLClient)
