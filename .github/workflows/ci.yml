@@ -19,8 +19,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode.app
+      - name: Select the newest available Xcode
+        # /Applications/Xcode.app on this runner image resolves to an
+        # older Xcode than the pbxproj format XcodeGen's latest release
+        # writes by default ("cannot be opened because it is in a future
+        # Xcode project file format" if an older Xcode is selected) -
+        # macOS runner images ship several Xcode versions side by side
+        # under /Applications/Xcode_<version>.app, so pick the newest one
+        # actually installed rather than trusting the default symlink.
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST=/Applications/Xcode.app
+          fi
+          echo "Selecting $LATEST"
+          sudo xcode-select -switch "$LATEST"
+          xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
