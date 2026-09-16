@@ -74,3 +74,8 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGNING_REQUIRED: NO
         DEVELOPMENT_TEAM: ""
+        # Ad-hoc signing (needed for Keychain entitlements - see the app
+        # target's comment above) requires every signed target to have an
+        # Info.plist to embed; this test bundle has no custom content to
+        # put in one, so let Xcode generate a minimal one automatically.
+        GENERATE_INFOPLIST_FILE: YES
