@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # This repo has no Xcode/Swift toolchain available in the development
+    # sandbox it was built in - this job is the first and only place any
+    # of this has actually been compiled. See docs/project-memory/06-ops.md.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an available iPhone simulator
+        id: sim
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^ *([^(]+) \(.*/\1/' | sed -E 's/ *$//')
+          if [ -z "$DEVICE" ]; then
+            echo "No available iPhone simulator found" >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project NotifyHubIOS.xcodeproj \
+            -scheme NotifyHubIOS \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project NotifyHubIOS.xcodeproj \
+            -scheme NotifyHubIOS \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            CODE_SIGNING_ALLOWED=NO
+
+  # A `dependency-review` job (actions/dependency-review-action) is not
+  # configured here for the same reason notifyhub's CI omits it: it
+  # requires the repository's "Dependency graph" setting enabled, an
+  # account-level toggle outside this workflow's control. This repo has
+  # no external Swift package dependencies today, so Dependabot's
+  # `.github/dependabot.yml` swift/github-actions ecosystems are the
+  # ongoing coverage.
