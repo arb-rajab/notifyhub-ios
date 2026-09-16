@@ -53,8 +53,14 @@ jobs:
         # output guarantees a pairing that's actually valid for this
         # project, instead of guessing at one.
         run: |
-          LINES=$(xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS 2>/dev/null \
-            | grep "platform:iOS Simulator" | grep "name:iPhone")
+          # This step reasons about its own "not found" case below, and an
+          # intermediate grep with zero matches (or output landing on
+          # stderr, if -showdestinations ever does that) must not abort
+          # the script before that check runs - so turn off -e here and
+          # capture both streams rather than discarding stderr.
+          set +e
+          ALL=$(xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS 2>&1)
+          LINES=$(echo "$ALL" | grep "platform:iOS Simulator" | grep "name:iPhone")
           BEST=$(echo "$LINES" | while IFS= read -r line; do
             os=$(echo "$line" | grep -oE 'OS:[0-9.]+' | sed 's/OS://')
             [ -n "$os" ] && echo "$os|$line"
@@ -62,7 +68,7 @@ jobs:
 
           if [ -z "$BEST" ]; then
             echo "No available iPhone simulator destination found" >&2
-            xcodebuild -showdestinations -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS
+            echo "$ALL"
             exit 1
           fi
 
