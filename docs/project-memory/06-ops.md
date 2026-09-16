@@ -23,10 +23,18 @@ Or from the command line:
 
 ```bash
 xcodebuild build -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS \
-  -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 15'
 xcodebuild test -project NotifyHubIOS.xcodeproj -scheme NotifyHubIOS \
-  -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
+
+No `CODE_SIGNING_ALLOWED=NO` needed (or wanted) here - `project.yml` sets
+ad-hoc signing (`CODE_SIGN_IDENTITY: "-"`) for both targets, which needs
+no paid Apple Developer account or provisioning profile for a Simulator
+destination. A fully unsigned build launches in the Simulator fine, but
+Keychain Services entitlement checks fail with `errSecMissingEntitlement`
+without at least ad-hoc signing - `KeychainStoreTests` is what caught
+this in CI.
 
 (Substitute whatever Simulator is actually installed - CI discovers one
 dynamically rather than hardcoding a name for exactly this reason; see

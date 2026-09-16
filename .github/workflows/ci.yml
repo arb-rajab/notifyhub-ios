@@ -87,13 +87,19 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "os=$OS" >> "$GITHUB_OUTPUT"
 
+      # Signing uses project.yml's CODE_SIGN_IDENTITY=- (ad-hoc) - not
+      # CODE_SIGNING_ALLOWED=NO. A fully unsigned build launches in the
+      # Simulator fine, but Keychain Services entitlement checks
+      # (KeychainStoreTests) fail with errSecMissingEntitlement without
+      # at least ad-hoc signing, which needs no paid account or profile
+      # for a Simulator destination. Don't pass CODE_SIGNING_ALLOWED=NO
+      # here - it would override the project setting back to unsigned.
       - name: Build
         run: |
           xcodebuild build \
             -project NotifyHubIOS.xcodeproj \
             -scheme NotifyHubIOS \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}" \
-            CODE_SIGNING_ALLOWED=NO
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}"
 
       - name: Test
         run: |
@@ -101,8 +107,7 @@ jobs:
           xcodebuild test \
             -project NotifyHubIOS.xcodeproj \
             -scheme NotifyHubIOS \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}" \
-            CODE_SIGNING_ALLOWED=NO
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}"
 
   # A `dependency-review` job (actions/dependency-review-action) is not
   # configured here for the same reason notifyhub's CI omits it: it

@@ -45,8 +45,14 @@ targets:
         # ("Could not find test host" at test time). CFBundleDisplayName
         # below is the actual user-visible app name; this only affects
         # the internal product/bundle identifier naming.
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGN_IDENTITY: ""
+        #
+        # Ad-hoc ("-") signing, not CODE_SIGNING_ALLOWED=NO: a fully
+        # unsigned build launches fine in the Simulator, but Keychain
+        # Services entitlement checks (used by KeychainStore) fail with
+        # errSecMissingEntitlement (-34018) without at least ad-hoc
+        # signing - and ad-hoc signing needs no paid Apple Developer
+        # account or provisioning profile for Simulator destinations.
+        CODE_SIGN_IDENTITY: "-"
         CODE_SIGNING_REQUIRED: NO
         DEVELOPMENT_TEAM: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
@@ -65,7 +71,6 @@ targets:
       - target: NotifyHubIOS
     settings:
       base:
-        CODE_SIGNING_ALLOWED: NO
-        CODE_SIGN_IDENTITY: ""
+        CODE_SIGN_IDENTITY: "-"
         CODE_SIGNING_REQUIRED: NO
         DEVELOPMENT_TEAM: ""
