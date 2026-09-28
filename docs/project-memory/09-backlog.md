@@ -3,6 +3,13 @@
 Not committed to any timeline - ordered roughly by expected value for a
 portfolio piece at this stage.
 
+## Admin-only, not actionable by any session
+
+- [ ] Configure branch protection on `main` to require `build-and-test` as
+      a required status check - currently unset (`"protected": false`); no
+      session's tooling can read or write this setting. See
+      [08-risk.md](./08-risk.md) R-7 for the exact steps.
+
 ## Near-term
 
 - [ ] Reconnect/retry logic for `GraphQLSubscriptionClient` (exponential
