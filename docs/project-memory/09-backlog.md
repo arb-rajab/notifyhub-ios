@@ -16,10 +16,13 @@ portfolio piece at this stage.
       backoff on an unexpected close, matching the spirit of notifyhub's
       own `ApnsHttpClient` retry/backoff design on the server side) -
       [08-risk.md](./08-risk.md) R-3.
-- [ ] Surface a non-silent signal when `PushRegistrationService`
-      registration fails repeatedly (a settings-screen "push not
-      registered" indicator, rather than the current fully-silent
-      best-effort retry) - [08-risk.md](./08-risk.md) R-5.
+- [x] Surface a non-silent signal when push registration fails or the
+      permission is denied: `PushStatus` (fed by `NotifyHubApp`,
+      `AppSession`, `AppDelegate`) drives a dismissible `PushStatusBanner`
+      in `RootView` - [08-risk.md](./08-risk.md) R-5. Still open: the
+      banner doesn't re-check the permission on returning from Settings
+      (it clears on next launch), and there's no persistent "registered"
+      indicator - that would belong on the device-management screen below.
 - [ ] A settings/device-management screen backed by the already-wired
       `myDeviceTokens` query and `revokeDeviceToken` mutation (both
       exist end-to-end on the client, just with no dedicated UI yet).
