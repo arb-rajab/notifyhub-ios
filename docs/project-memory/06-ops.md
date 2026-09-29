@@ -48,6 +48,13 @@ generates the project, picks an available iPhone Simulator via
 signing disabled (`CODE_SIGNING_ALLOWED=NO`) - no provisioning profile
 or signing identity is needed to build/test against a Simulator.
 
+The same workflow has two further jobs (see the comments in `ci.yml` for
+why each is shaped as it is): `Secret scan (gitleaks)` scans full git
+history on `ubuntu-latest`, and `CodeQL (Swift)` is a separate `macos-14`
+job that traces a from-scratch `xcodebuild build` and uploads results to
+code scanning. There is still no SwiftLint and no dependency scan (there
+are no external Swift dependencies; Dependabot covers swift + actions).
+
 ## Real device / real push testing
 
 Requires, entirely outside any automated session:

@@ -10,8 +10,18 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default; the jobs that need more (CodeQL's upload to
+# code scanning) ask for it individually.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
+    # Explicit, but deliberately identical to the job id: branch protection
+    # on main requires a status check with exactly this name, so renaming
+    # it (e.g. to "Build and test") would leave the required check
+    # unreported and block every merge.
+    name: build-and-test
     # This repo has no Xcode/Swift toolchain available in the development
     # sandbox it was built in - this job is the first and only place any
     # of this has actually been compiled. See docs/project-memory/06-ops.md.
@@ -109,10 +119,86 @@ jobs:
             -scheme NotifyHubIOS \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }},OS=${{ steps.sim.outputs.os }}"
 
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so gitleaks can scan every commit in the push/PR
+          # range, not just the tip - a secret committed and then removed
+          # is still leaked.
+          fetch-depth: 0
+
+      # The action runs the gitleaks binary; it needs no license for
+      # repositories owned by a personal account (only organizations).
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codeql:
+    name: CodeQL (Swift)
+    # CodeQL's Swift support only runs on macOS. This is a separate job
+    # rather than steps added to build-and-test so that (a) the
+    # `security-events: write` permission is scoped to this job alone,
+    # (b) a code-scanning problem (e.g. the setting being unavailable)
+    # cannot mask or fail the build/test result, and (c) it runs in
+    # parallel. The cost is one extra Xcode build; it uses a generic
+    # Simulator destination, so it needs no Simulator-picking step.
+    runs-on: macos-14
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest available Xcode
+        # Same reasoning as in build-and-test above.
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST=/Applications/Xcode.app
+          fi
+          echo "Selecting $LATEST"
+          sudo xcode-select -switch "$LATEST"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: swift
+          build-mode: manual
+
+      # CodeQL traces this build to extract the Swift sources, so it must
+      # be a real, from-scratch compile of the app (not a cached one).
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project NotifyHubIOS.xcodeproj \
+            -scheme NotifyHubIOS \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator"
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:swift"
+
   # A `dependency-review` job (actions/dependency-review-action) is not
   # configured here for the same reason notifyhub's CI omits it: it
   # requires the repository's "Dependency graph" setting enabled, an
   # account-level toggle outside this workflow's control. This repo has
-  # no external Swift package dependencies today, so Dependabot's
+  # no external Swift package dependencies today (no Package.swift /
+  # Package.resolved, no `packages:` in project.yml), so Dependabot's
   # `.github/dependabot.yml` swift/github-actions ecosystems are the
-  # ongoing coverage.
+  # ongoing coverage. If a dependency is ever added, add osv-scanner here.
