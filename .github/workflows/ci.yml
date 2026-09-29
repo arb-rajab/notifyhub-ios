@@ -17,7 +17,11 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Build and test
+    # Explicit, but deliberately identical to the job id: branch protection
+    # on main requires a status check with exactly this name, so renaming
+    # it (e.g. to "Build and test") would leave the required check
+    # unreported and block every merge.
+    name: build-and-test
     # This repo has no Xcode/Swift toolchain available in the development
     # sandbox it was built in - this job is the first and only place any
     # of this has actually been compiled. See docs/project-memory/06-ops.md.
