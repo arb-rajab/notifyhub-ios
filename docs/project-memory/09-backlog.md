@@ -5,10 +5,11 @@ portfolio piece at this stage.
 
 ## Admin-only, not actionable by any session
 
-- [ ] Configure branch protection on `main` to require `build-and-test` as
-      a required status check - currently unset (`"protected": false`); no
-      session's tooling can read or write this setting. See
-      [08-risk.md](./08-risk.md) R-7 for the exact steps.
+- [x] Configure branch protection on `main` to require `build-and-test` as
+      a required status check. Done, and extended further: the rule now
+      also requires `Secret scan (gitleaks)` and `CodeQL (Swift)` (added
+      once `.github/workflows/security.yml` existed). Fixed by the repo
+      owner directly - see [08-risk.md](./08-risk.md) R-7.
 
 ## Near-term
 
