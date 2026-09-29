@@ -16,6 +16,7 @@ final class AppSession: ObservableObject {
     let channelRepository: ChannelRepository
     let notificationRepository: NotificationRepository
     let deepLinkCoordinator: DeepLinkCoordinator
+    let pushStatus: PushStatus
 
     private let graphQLClient: GraphQLClient
     private let keychain: KeychainStore
@@ -40,6 +41,7 @@ final class AppSession: ObservableObject {
         // initializer is) - build it here in the init body instead, which
         // does run under AppSession's own @MainActor isolation.
         self.deepLinkCoordinator = deepLinkCoordinator ?? DeepLinkCoordinator()
+        self.pushStatus = PushStatus()
         self.authService = AuthService(client: graphQLClient)
         self.pushRegistrationService = PushRegistrationService(client: graphQLClient)
         self.channelRepository = ChannelRepository(client: graphQLClient)
@@ -88,6 +90,10 @@ final class AppSession: ObservableObject {
         graphQLClient.authToken = nil
         keychain.clear()
         currentUser = nil
+        // A registration failure belongs to the account that was signed in;
+        // don't show it to the next one. (A denied permission is a
+        // device-level fact and stays.)
+        pushStatus.clearRegistrationFailure()
     }
 
     /// Called after sign-in completes, in case `AppDelegate` already
@@ -96,7 +102,9 @@ final class AppSession: ObservableObject {
     /// notifyhub's `DeviceTokenService`).
     func registerCurrentAPNsTokenIfNeeded() async {
         guard isSignedIn, let token = lastKnownDeviceToken else { return }
-        try? await pushRegistrationService.register(deviceToken: token)
+        await pushStatus.recordRegistration {
+            try await self.pushRegistrationService.register(deviceToken: token)
+        }
     }
 
     func makePushRegistrationService() -> PushRegistrationService {
