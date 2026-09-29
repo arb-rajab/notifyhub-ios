@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     /// the adaptor, before `didFinishLaunchingWithOptions` can fire.
     var deepLinkCoordinator: DeepLinkCoordinator?
     var pushRegistrationService: (() -> PushRegistrationService?)?
+    var pushStatus: PushStatus?
 
     private let lastDeviceTokenDefaultsKey = "notifyhub.lastAPNsDeviceToken"
 
@@ -42,13 +43,24 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UserDefaults.standard.set(tokenString, forKey: lastDeviceTokenDefaultsKey)
 
         guard let service = pushRegistrationService?() else { return }
+        let pushStatus = self.pushStatus
         Task {
             // Best-effort: this can legitimately fail if the user isn't
             // signed in yet (notifyhub's registerDeviceToken/
             // rotateDeviceToken both require an authenticated caller).
             // AppSession re-registers the current APNs token once sign-in
-            // completes, so a failure here isn't the last chance.
-            try? await service.rotate(oldToken: previousToken, newToken: tokenString)
+            // completes, so a failure here isn't the last chance - but the
+            // failure is still recorded on `pushStatus` rather than
+            // discarded, since that retry can fail too. The banner only
+            // shows while signed in, and a later successful registration
+            // clears it.
+            if let pushStatus {
+                await pushStatus.recordRegistration {
+                    try await service.rotate(oldToken: previousToken, newToken: tokenString)
+                }
+            } else {
+                _ = try? await service.rotate(oldToken: previousToken, newToken: tokenString)
+            }
         }
     }
 

@@ -20,6 +20,9 @@ struct RootView: View {
                             destination(for: route)
                         }
                 }
+                .safeAreaInset(edge: .bottom) {
+                    PushStatusBanner()
+                }
             } else {
                 LoginView()
             }
