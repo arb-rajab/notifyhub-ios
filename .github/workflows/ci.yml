@@ -27,7 +27,7 @@ jobs:
     # of this has actually been compiled. See docs/project-memory/06-ops.md.
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select the newest available Xcode
         # /Applications/Xcode.app on this runner image resolves to an
@@ -126,7 +126,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history so gitleaks can scan every commit in the push/PR
           # range, not just the tip - a secret committed and then removed
@@ -154,7 +154,7 @@ jobs:
       security-events: write
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select the newest available Xcode
         # Same reasoning as in build-and-test above.
