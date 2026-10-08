@@ -4,7 +4,7 @@ _Last updated: 2026-10-08. Maintained during the Dependabot clean-up pass; updat
 
 ## Configuration
 
-- Ecosystems covered: github-actions (`/`), swift (`/`).
+- Ecosystems covered: github-actions (`/`).
 - Grouping: none (one PR per update).
 - Schedule: weekly.
 - Ignore rules: none.
@@ -21,6 +21,7 @@ _Last updated: 2026-10-08. Maintained during the Dependabot clean-up pass; updat
 ## Notes
 
 - No Dependabot PRs were open at the start of the pass; there is no osv-scanner config in this repo.
+- The `swift` entry was removed on 2026-10-08. The app has no `Package.swift` and no Swift package dependencies, so the swift update job failed every week (`dependency_file_not_found`, "No files found in /"). Add it back with the first Swift package dependency.
 
 ## Deferred (not re-raised each pass)
 
