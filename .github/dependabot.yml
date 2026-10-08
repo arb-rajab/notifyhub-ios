@@ -4,7 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "swift"
-    directory: "/"
-    schedule:
-      interval: "weekly"
+  # No "swift" entry: the app has no Package.swift and no Swift package
+  # dependencies (project.yml lists only the app and test targets), so the
+  # swift updater failed every week with "No files found in /". Add it back
+  # alongside the first Package.swift.
