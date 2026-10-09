@@ -59,7 +59,7 @@
 **This sandbox has no Xcode or Swift toolchain at all** (Linux
 container, no macOS) - nothing under `Sources/` or `Tests/` has been
 locally compiled or run at any point this session. `.github/workflows/
-ci.yml`'s `macos-14` job (`xcodegen generate` -> `xcodebuild build` ->
+ci.yml`'s `macos-15` job (`xcodegen generate` -> `xcodebuild build` ->
 `xcodebuild test` against a dynamically-selected available iPhone
 Simulator) is the **first and only** place any of this has actually
 built. Trust that job's result, not this document's confidence, for

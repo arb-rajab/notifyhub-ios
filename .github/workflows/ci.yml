@@ -25,7 +25,8 @@ jobs:
     # This repo has no Xcode/Swift toolchain available in the development
     # sandbox it was built in - this job is the first and only place any
     # of this has actually been compiled. See docs/project-memory/06-ops.md.
-    runs-on: macos-14
+    runs-on: macos-15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -122,6 +123,7 @@ jobs:
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
@@ -148,7 +150,8 @@ jobs:
     # cannot mask or fail the build/test result, and (c) it runs in
     # parallel. The cost is one extra Xcode build; it uses a generic
     # Simulator destination, so it needs no Simulator-picking step.
-    runs-on: macos-14
+    runs-on: macos-15
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write

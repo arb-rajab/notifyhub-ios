@@ -12,7 +12,7 @@ Swift toolchain, no `swift` or `xcodebuild` binary, nothing.** Don't run
 `swift build`, `xcodebuild`, `xcodegen generate`, or anything else that
 assumes a Swift compiler exists here - it will simply fail with "command
 not found," and burning a turn trying variations of that command is
-wasted. `.github/workflows/ci.yml`'s `macos-14` job is the **only**
+wasted. `.github/workflows/ci.yml`'s `macos-15` job is the **only**
 place any of this has ever been compiled. If you need to know whether
 the code actually builds, check that job's result - don't guess, and
 don't claim it builds based on "I read it carefully."
@@ -67,7 +67,7 @@ mismatched field name for you.
 ## Simulator vs. real device vs. CI, for push-related work specifically
 
 - **This sandbox:** can't run anything Swift at all (see above).
-- **CI (`macos-14` Simulator):** can build and run `DeepLinkCoordinator
+- **CI (`macos-15` Simulator):** can build and run `DeepLinkCoordinator
   Tests` etc. against a Simulator, but the Simulator cannot receive a
   real Apple-delivered push - `xcrun simctl push` can inject a
   locally-crafted payload for manual testing, but that's not wired into
