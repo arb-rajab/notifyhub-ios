@@ -42,15 +42,15 @@ dynamically rather than hardcoding a name for exactly this reason; see
 
 ## CI
 
-`.github/workflows/ci.yml` runs on `macos-14`: installs XcodeGen,
+`.github/workflows/ci.yml` runs on `macos-15`: installs XcodeGen,
 generates the project, picks an available iPhone Simulator via
-`xcrun simctl list devices available`, then builds and tests with code
-signing disabled (`CODE_SIGNING_ALLOWED=NO`) - no provisioning profile
+`xcrun simctl list devices available`, then builds and tests with ad-hoc
+code signing (`CODE_SIGN_IDENTITY=-`) - no provisioning profile
 or signing identity is needed to build/test against a Simulator.
 
 The same workflow has two further jobs (see the comments in `ci.yml` for
 why each is shaped as it is): `Secret scan (gitleaks)` scans full git
-history on `ubuntu-latest`, and `CodeQL (Swift)` is a separate `macos-14`
+history on `ubuntu-24.04`, and `CodeQL (Swift)` is a separate `macos-15`
 job that traces a from-scratch `xcodebuild build` and uploads results to
 code scanning. There is still no SwiftLint and no dependency scan (there
 are no external Swift dependencies; Dependabot covers swift + actions).
@@ -87,3 +87,9 @@ to `localhost:4000`, matching notifyhub's `npm run dev` default). Point
 this at a real deployed notifyhub host via an Xcode build setting /
 `project.yml` `info.properties` override per environment - never commit
 a real production host here as a "default."
+
+Runner: `macos-15` since 2026-10-09. GitHub retires `macos-14` on
+2026-11-02, with brownouts (jobs on that label deliberately fail) from
+2026-10-05 to 2026-10-30. Every job also sets `timeout-minutes`, so a hung
+Simulator or CodeQL build fails instead of holding a required check for
+GitHub's 6-hour default.
